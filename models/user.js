@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
+const passwordRegex = /^.{6,}$/;
 const nameRegex = /^[A-Za-z\s]+$/;
 
 const User = {
@@ -12,8 +12,8 @@ const User = {
             throw new Error('Invalid email format');
         }
         if (!passwordRegex.test(password)) {
-            throw new Error('Password must be at least 6 characters long and contain at least one letter and one number');
-        }
+            throw new Error('Password must be at least 6 characters long');
+        }        
         if (!nameRegex.test(first_name) || !nameRegex.test(last_name)) {
             throw new Error('First and last name should contain only alphabets');
         }
@@ -37,8 +37,8 @@ const User = {
         const { first_name, last_name, password, role_id } = updatedData;
 
         if (!passwordRegex.test(password)) {
-            throw new Error('Password must be at least 6 characters long and contain at least one letter and one number');
-        }
+            throw new Error('Password must be at least 6 characters long');
+        }        
         if (!nameRegex.test(first_name) || !nameRegex.test(last_name)) {
             throw new Error('First and last name should contain only alphabets');
         }
@@ -53,6 +53,10 @@ const User = {
     },
 
     async findByEmail(email) {
+        if (!emailRegex.test(email)) {
+            throw new Error('Invalid email format');
+        }
+
         const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         return rows[0];
     },
@@ -61,6 +65,16 @@ const User = {
         const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
         return rows[0];
     },
+
+    async getAllEmployees() {
+        const [rows] = await db.query('SELECT * FROM users WHERE role_id = 2');
+        return rows;
+    },
+
+    async getAllAdmins() {
+        const [rows] = await db.query('SELECT * FROM users WHERE role_id = 1');
+        return rows;
+    }
 };
 
 module.exports = User;

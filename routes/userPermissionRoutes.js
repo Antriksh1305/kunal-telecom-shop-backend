@@ -12,6 +12,8 @@ router.get('/approve/:userId', async (req, res) => {
         // find if it exists in the database or not
         const user = await User.findByUserId(userId);
         if (!user) throw new Error('User not found');
+        if (user.is_approved === 1) throw new Error('User is already approved');
+        if (user.is_approved === 0) throw new Error('User is already disapproved');
 
         // approve the user
         await UserPermission.approveUser(userId);
@@ -83,7 +85,7 @@ router.get('/approve/:userId', async (req, res) => {
                 <body>
                     <div class="error">
                         <h2>Error Approving User</h2>
-                        <p>Something went wrong while approving the user. Please try again later.</p>
+                        <p>${error}</p>
                     </div>
                 </body>
             </html>
@@ -99,6 +101,8 @@ router.get('/disapprove/:userId', async (req, res) => {
     try {
         const user = await User.findByUserId(userId);
         if (!user) throw new Error('User not found');
+        if (user.is_approved === 1) throw new Error('User is already approved');
+        if (user.is_approved === 0) throw new Error('User is already disapproved');
 
         await UserPermission.disapproveUser(userId);
 
@@ -153,7 +157,7 @@ router.get('/disapprove/:userId', async (req, res) => {
                 <body>
                     <div class="error">
                         <h2>Error Disapproving User</h2>
-                        <p>Something went wrong while disapproving the user. Please try again later.</p>
+                        <p>${error}</p>
                     </div>
                 </body>
             </html>

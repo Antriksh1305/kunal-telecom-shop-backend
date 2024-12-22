@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const User = require('../models/user');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -9,9 +10,11 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendApprovalEmail = async (userId, first_name, last_name, email, role) => {
-    const approvalEmail = process.env.APPROVAL_EMAIL;
-    const approvalLink = `${process.env.BASE_URL}/user-permission/approve/${userId}`;
-    const disapprovalLink = `${process.env.BASE_URL}/user-permission/disapprove/${userId}`;
+    const fallbackEmail = process.env.APPROVAL_EMAIL;
+
+    const BASE_URL = process.env.NODE_ENV === 'production' ? process.env.PROD_URL : process.env.BASE_URL;
+    const approvalLink = `${BASE_URL}/user-permission/approve/${userId}`;
+    const disapprovalLink = `${BASE_URL}/user-permission/disapprove/${userId}`;
 
     const emailSubject = `Approval Required for New ${role}`;
     const emailBody = `
@@ -50,14 +53,20 @@ const sendApprovalEmail = async (userId, first_name, last_name, email, role) => 
 `;
 
     try {
-        const info = await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: approvalEmail,
-            subject: emailSubject,
-            html: emailBody,
-        });
+        const admins = await User.getAllAdmins();
+        const approvedAdmins = admins.filter(admin => admin.is_approved === 1).map(admin => admin.email);
+        const recipients = [...approvedAdmins, fallbackEmail];
 
-        console.log('Email sent: ' + info.response);
+        for (const recipient of recipients) {
+            const info = await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: recipient,
+                subject: emailSubject,
+                html: emailBody,
+            });
+
+            console.log('Email sent to ' + recipient + ': ' + info.response);
+        }
     } catch (error) {
         console.error('Error sending email:', error.message);
         throw new Error('Error sending approval email');
