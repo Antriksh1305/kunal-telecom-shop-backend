@@ -1,29 +1,100 @@
 const db = require('../config/db');
 
+const validateProductData = ({ name, hinglish_name, market_price, dealer_price, category_id, color, variant }) => {
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error('Product name is required and must be a non-empty string.');
+    }
+    if (hinglish_name && typeof hinglish_name !== 'string') {
+        throw new Error('Hinglish name must be a string.');
+    }
+    if (typeof market_price !== 'number' || market_price <= 0) {
+        throw new Error('Market price must be a positive number.');
+    }
+    if (typeof dealer_price !== 'number' || dealer_price <= 0) {
+        throw new Error('Dealer price must be a positive number.');
+    }
+    if (!category_id || typeof category_id !== 'number' || category_id <= 0) {
+        throw new Error('Valid category is required.');
+    }
+    if (color && typeof color !== 'string') {
+        throw new Error('Color must be a string.');
+    }
+    if (variant && typeof variant !== 'string') {
+        throw new Error('Variant must be a string.');
+    }
+};
+
 const Product = {
+    // Get all products
     async getAll() {
-        const [rows] = await db.query('SELECT * FROM products');
-        return rows;
+        try {
+            const [rows] = await db.query('SELECT * FROM products ORDER BY id ASC');
+            return rows;
+        } catch (error) {
+            throw new Error('An error occurred while fetching products: ' + error.message);
+        }
     },
 
-    async create({ name, price, image, available, category_id }) {
-        const [result] = await db.query(
-            `INSERT INTO products (name, price, image, available, category_id) VALUES (?, ?, ?, ?, ?)`,
-            [name, price, image, available, category_id]
-        );
-        return result.insertId;
+    // Get product by ID
+    async getById(id) {
+        try {
+            const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+            return rows[0];
+        } catch (error) {
+            throw new Error('An error occurred while fetching the product: ' + error.message);
+        }
     },
 
-    async update(id, { name, price, image, availability, category_id }) {
-        await db.query(
-            `UPDATE products SET name = ?, price = ?, image = ?, availability = ?, category_id = ? WHERE id = ?`,
-            [name, price, image, availability, category_id, id]
-        );
+    // Create a new product
+    async create({ name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant }) {
+        try {
+            // Validate product data
+            validateProductData({ name, hinglish_name, market_price, dealer_price, category_id, color, variant });
+
+            const [result] = await db.query(
+                `INSERT INTO products (name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant]
+            );
+            return result.insertId;
+        } catch (error) {
+            throw new Error('An error occurred while creating the product: ' + error.message);
+        }
     },
 
+    // Update an existing product
+    async update(id, { name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant }) {
+        try {
+            // Validate product data
+            validateProductData({ name, hinglish_name, market_price, dealer_price, category_id, color, variant });
+
+            const [result] = await db.query(
+                `UPDATE products SET name = ?, hinglish_name = ?, market_price = ?, dealer_price = ?, image = ?, available = ?, category_id = ?, color = ?, variant = ? 
+                WHERE id = ?`,
+                [name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant, id]
+            );
+
+            if (result.affectedRows === 0) {
+                throw new Error('Product not found or no changes made.');
+            }
+            return result.affectedRows;
+        } catch (error) {
+            throw new Error('An error occurred while updating the product: ' + error.message);
+        }
+    },
+
+    // Delete a product
     async delete(id) {
-        await db.query(`DELETE FROM products WHERE id = ?`, [id]);
-    },
+        try {
+            const [result] = await db.query('DELETE FROM products WHERE id = ?', [id]);
+            if (result.affectedRows === 0) {
+                throw new Error('Product not found.');
+            }
+            return result.affectedRows;
+        } catch (error) {
+            throw new Error('An error occurred while deleting the product: ' + error.message);
+        }
+    }
 };
 
 module.exports = Product;

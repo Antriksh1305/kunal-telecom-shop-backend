@@ -9,7 +9,7 @@ async function initializeDatabase() {
 
     // Use the newly created or existing database
     await connection.query('USE shop;');
-
+    
     // Create `categories` table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS categories (
@@ -22,13 +22,17 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS products (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(255) UNIQUE NOT NULL,
-      price DECIMAL(10, 2),
+      hinglish_name VARCHAR(255),
+      category_id INT NOT NULL,
+      market_price DECIMAL(10, 2),
+      dealer_price DECIMAL(10, 2),
       image TEXT,
       available INT DEFAULT 0,
-      category_id INT,
-      FOREIGN KEY (category_id) REFERENCES categories(id));
+      color VARCHAR(50) NOT NULL,
+      variant VARCHAR(100) NOT NULL,
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE);
     `);
-
+    
     // Create `roles` table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS roles (
@@ -49,7 +53,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS users (
           id INT AUTO_INCREMENT PRIMARY KEY,
           email VARCHAR(255) NOT NULL UNIQUE,
-          first_name VARCHAR(255),
+          first_name VARCHAR(255) NOT NULL,
           last_name VARCHAR(255),
           password VARCHAR(255) NOT NULL,
           role_id INT NOT NULL,

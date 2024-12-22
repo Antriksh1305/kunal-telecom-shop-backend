@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const initializeDatabase = require('./config/initDb');
 const userRoutes = require('./routes/userRoutes');
+const userPermissionRoutes = require('./routes/userPermissionRoutes');
 const productRoutes = require('./routes/productRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 
@@ -20,6 +21,7 @@ initializeDatabase();
 
 // Routes
 app.use('/users', userRoutes);
+app.use('/user-permission', userPermissionRoutes);
 app.use('/products', productRoutes);
 app.use('/categories', categoryRoutes);
 

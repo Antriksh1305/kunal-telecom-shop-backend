@@ -80,190 +80,91 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Approve User
-router.get('/approve/:userId', async (req, res) => {
+// Update User
+router.put('/:userId', async (req, res) => {
     const { userId } = req.params;
+    const { first_name, last_name, password } = req.body;
+
+    // Basic validation
+    if (!first_name || !password) {
+        return res.status(400).json({ error: 'First name and password are required' });
+    }
 
     try {
-        // find if it exists in the database or not
         const user = await User.findByUserId(userId);
-        if (!user) throw new Error('User not found');
 
-        // approve the user
-        await User.approveUser(userId);
-        
-        const permissions = await User.getAllPermissions();
-        if (user.role_id === 1) {
-            // admin
-            for (let permission of permissions) {
-                await User.assignPermission(userId, permission.id);
-            }
-        } else if (user.role === 2) {
-            // employee
-            for (let permission of permissions) {
-                if (permission.permission_name === 'manage_product' || permission.permission_name === 'manage_product_categories') {
-                    await User.assignPermission(userId, permission.id);
-                }
-            }
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
         }
 
-        const htmlResponse = `
-            <html>
-                <head>
-                    <title>User Approval</title>
-                    <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            text-align: center;
-                            margin-top: 50px;
-                        }
-                        .message {
-                            background-color: #4CAF50;
-                            color: white;
-                            padding: 20px;
-                            border-radius: 10px;
-                            display: inline-block;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="message">
-                        <h2>User Approved Successfully!</h2>
-                        <p>The user has been successfully approved.</p>
-                    </div>
-                </body>
-            </html>
-        `;
-        res.send(htmlResponse);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
+        await User.update(userId, {
+            first_name,
+            last_name,
+            password: hashedPassword
+        });
+
+        res.status(200).json({ message: 'User updated successfully' });
     } catch (error) {
         console.log(error);
-        
-        // Respond with a friendly error message
-        const errorHtml = `
-            <html>
-                <head>
-                    <title>Error</title>
-                    <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            text-align: center;
-                            margin-top: 50px;
-                        }
-                        .error {
-                            background-color: #f44336;
-                            color: white;
-                            padding: 20px;
-                            border-radius: 10px;
-                            display: inline-block;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="error">
-                        <h2>Error Approving User</h2>
-                        <p>Something went wrong while approving the user. Please try again later.</p>
-                    </div>
-                </body>
-            </html>
-        `;
-        res.status(500).send(errorHtml);
-    }
-});
-
-// Disapprove User
-router.get('/disapprove/:userId', async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        const user = await User.findByUserId(userId);
-        if (!user) throw new Error('User not found');
-
-        await User.disapproveUser(userId);
-
-        const htmlResponse = `
-            <html>
-                <head>
-                    <title>User Disapproval</title>
-                    <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            text-align: center;
-                            margin-top: 50px;
-                        }
-                        .message {
-                            background-color: #f44336;
-                            color: white;
-                            padding: 20px;
-                            border-radius: 10px;
-                            display: inline-block;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="message">
-                        <h2>User Disapproved Successfully!</h2>
-                        <p>The user has been successfully disapproved.</p>
-                    </div>
-                </body>
-            </html>
-        `;
-        res.send(htmlResponse);
-    } catch (error) {
-        const errorHtml = `
-            <html>
-                <head>
-                    <title>Error</title>
-                    <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            text-align: center;
-                            margin-top: 50px;
-                        }
-                        .error {
-                            background-color: #f44336;
-                            color: white;
-                            padding: 20px;
-                            border-radius: 10px;
-                            display: inline-block;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="error">
-                        <h2>Error Disapproving User</h2>
-                        <p>Something went wrong while disapproving the user. Please try again later.</p>
-                    </div>
-                </body>
-            </html>
-        `;
-        res.status(500).send(errorHtml);
-    }
-});
-
-// Update User
-router.put('/update/:userId', async (req, res) => {
-    
-});
-
-// Get All Permissions
-router.get('/permissions', async (req, res) => {
-    try {
-        const permissions = await User.getAllPermissions();
-        res.status(200).json(permissions);
-    } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Get User Permissions
-router.get('/permissions/:userId', async (req, res) => {
+// Delete User
+router.delete('/:userId', async (req, res) => {
     const { userId } = req.params;
 
     try {
-        const permissions = await User.getUserPermissions(userId);
-        res.status(200).json(permissions);
+        const user = await User.findByUserId(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        await User.delete(userId);
+
+        res.status(200).json({ message: 'User deleted successfully' });
     } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get All Users
+router.get('/', async (req, res) => {
+    try {
+        const users = await User.getAll();
+
+        res.status(200).json({ users });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get User By ID
+router.get('/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const user = await User.findByUserId(userId);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(200).json({
+            user: {
+                first_name: user.first_name,
+                last_name: user.last_name,
+                email: user.email,
+                role_id: user.role_id,
+                is_approved: user.is_approved
+            }
+        });
+    } catch (error) {
+        console.log(error);
         res.status(500).json({ error: 'Server error' });
     }
 });

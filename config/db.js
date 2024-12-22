@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 // Load the SSL certificate
-const sslCertificate = fs.readFileSync(path.resolve(__dirname, '../ca-certificate.pem'));
+const certificatePath = process.env.NODE_ENV === 'production' ? '/etc/secrets/CA_CERT' : path.resolve(__dirname, '../ca-certificate.pem');
+const sslCertificate = fs.readFileSync(certificatePath);
 
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
@@ -24,8 +25,9 @@ const pool = mysql.createPool(dbConfig);
 // Log when the pool is created
 console.log('Database pool created with configuration:', {
     host: dbConfig.host,
+    user: dbConfig.user,
     port: dbConfig.port,
-    database: dbConfig.database,
+    sslCertificatePath: certificatePath,
 });
 
 module.exports = pool;

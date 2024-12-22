@@ -10,8 +10,8 @@ const transporter = nodemailer.createTransport({
 
 const sendApprovalEmail = async (userId, first_name, last_name, email, role) => {
     const approvalEmail = process.env.APPROVAL_EMAIL;
-    const approvalLink = `${process.env.BASE_URL}/users/approve/${userId}`;
-    const disapprovalLink = `${process.env.BASE_URL}/users/disapprove/${userId}`;
+    const approvalLink = `${process.env.BASE_URL}/user-permission/approve/${userId}`;
+    const disapprovalLink = `${process.env.BASE_URL}/user-permission/disapprove/${userId}`;
 
     const emailSubject = `Approval Required for New ${role}`;
     const emailBody = `
