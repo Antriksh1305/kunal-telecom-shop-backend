@@ -27,28 +27,19 @@ const validateProductData = ({ name, hinglish_name, market_price, dealer_price, 
 const Product = {
     // Get all products
     async getAll() {
-        try {
-            const [rows] = await db.query('SELECT * FROM products ORDER BY id ASC');
-            return rows;
-        } catch (error) {
-            throw new Error('An error occurred while fetching products: ' + error.message);
-        }
+        const [rows] = await db.query('SELECT * FROM products ORDER BY id ASC');
+        return rows;
     },
 
     // Get product by ID
     async getById(id) {
-        try {
-            const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
-            return rows[0];
-        } catch (error) {
-            throw new Error('An error occurred while fetching the product: ' + error.message);
-        }
+        const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+        return rows[0];
     },
 
     // Create a new product
     async create({ name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant }) {
         try {
-            // Validate product data
             validateProductData({ name, hinglish_name, market_price, dealer_price, category_id, color, variant });
 
             const [result] = await db.query(
@@ -58,14 +49,13 @@ const Product = {
             );
             return result.insertId;
         } catch (error) {
-            throw new Error('An error occurred while creating the product: ' + error.message);
+            throw new Error(error.message);
         }
     },
 
     // Update an existing product
     async update(id, { name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant }) {
         try {
-            // Validate product data
             validateProductData({ name, hinglish_name, market_price, dealer_price, category_id, color, variant });
 
             const [result] = await db.query(
@@ -79,7 +69,7 @@ const Product = {
             }
             return result.affectedRows;
         } catch (error) {
-            throw new Error('An error occurred while updating the product: ' + error.message);
+            throw new Error(error.message);
         }
     },
 
@@ -90,9 +80,8 @@ const Product = {
             if (result.affectedRows === 0) {
                 throw new Error('Product not found.');
             }
-            return result.affectedRows;
         } catch (error) {
-            throw new Error('An error occurred while deleting the product: ' + error.message);
+            throw new Error(error.message);
         }
     }
 };

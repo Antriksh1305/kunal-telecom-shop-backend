@@ -1,13 +1,24 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+
+// models
 const User = require('../models/user');
+
+// middlewares
+const protect = require('../middlewares/authentication');
+const { loginLimiter, signupLimiter } = require('../middlewares/rateLimiter');
+
+// services
 const emailService = require('../services/emailService');
+
+// utils
+const { handleSqlError } = require('../utils/errorHandler');
 
 const router = express.Router();
 
-// Signup
-router.post('/signup', async (req, res) => {
+// Signup Route
+router.post('/signup', signupLimiter, async (req, res, next) => {
     const { email, first_name, last_name, password, role } = req.body;
 
     try {
@@ -30,17 +41,12 @@ router.post('/signup', async (req, res) => {
 
         res.status(201).json({ message: 'Signup successful! Approval required.' });
     } catch (error) {
-        if (error.code === 'ER_DUP_ENTRY') {
-            res.status(400).json({ error: 'Email already exists' });
-        } else {
-            console.log(error);
-            res.status(500).json({ error: 'Server error' });
-        }
+        next(error);
     }
 });
 
-// Login 
-router.post('/login', async (req, res) => {
+// Login Route
+router.post('/login', loginLimiter, async (req, res, next) => {
     const { email, password } = req.body;
 
     try {
@@ -61,31 +67,34 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign({ userId: user.id, role: user.role_id }, process.env.JWT_SECRET, {
-            expiresIn: '1d',
+            expiresIn: process.env.JWT_EXPIRES_IN,
         });
+
+        const role = user.role_id === 1 ? 'admin' : 'employee';
 
         res.status(200).json({
             message: 'Login successful',
             token,
             user: {
+                userId: user.id,
                 first_name: user.first_name,
                 last_name: user.last_name,
                 email: user.email,
                 role_id: user.role_id,
+                role: role,
                 is_approved: user.is_approved
             }
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        next(error);
     }
 });
 
 // Update User
-router.put('/:userId', async (req, res) => {
+router.put('/:userId', protect, async (req, res, next) => {
     const { userId } = req.params;
     const { first_name, last_name, password } = req.body;
 
-    // Basic validation
     if (!first_name || !password) {
         return res.status(400).json({ error: 'First name and password are required' });
     }
@@ -107,13 +116,12 @@ router.put('/:userId', async (req, res) => {
 
         res.status(200).json({ message: 'User updated successfully' });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Server error' });
+        next(error);
     }
 });
 
 // Delete User
-router.delete('/:userId', async (req, res) => {
+router.delete('/:userId', protect, async (req, res, next) => {
     const { userId } = req.params;
 
     try {
@@ -122,29 +130,31 @@ router.delete('/:userId', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        if (req.user.role_id === 2 && req.user.id !== parseInt(userId)) {
+            return res.status(403).json({ error: 'Forbidden: You don\'t have permission' });
+        }
+
         await User.delete(userId);
 
         res.status(200).json({ message: 'User deleted successfully' });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Server error' });
+        next(error);
     }
 });
 
 // Get All Users
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res, next) => {
     try {
         const users = await User.getAll();
 
         res.status(200).json({ users });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Server error' });
+        next(error);
     }
 });
 
 // Get User By ID
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', protect, async (req, res, next) => {
     const { userId } = req.params;
 
     try {
@@ -160,13 +170,25 @@ router.get('/:userId', async (req, res) => {
                 last_name: user.last_name,
                 email: user.email,
                 role_id: user.role_id,
+                role: user.role_id === 1 ? 'admin' : 'employee',
                 is_approved: user.is_approved
             }
         });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Server error' });
+        next(error);
     }
+});
+
+router.use((err, req, res, next) => {
+    if (err.code && err.errno) {
+        return handleSqlError(err, res);
+    }
+
+    if (err.message) {
+        return res.status(400).json({ error: err.message });
+    }
+
+    return res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = router;

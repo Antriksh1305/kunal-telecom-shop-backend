@@ -19,7 +19,7 @@ const Category = {
 
     // Create a new category
     async create({ name }) {
-        validateCategoryName(name); // Validate category name
+        validateCategoryName(name);
 
         const [result] = await db.query(
             `INSERT INTO categories (name) VALUES (?)`,
@@ -30,7 +30,7 @@ const Category = {
 
     // Update a category by ID
     async update(categoryId, { name }) {
-        validateCategoryName(name); // Validate category name
+        validateCategoryName(name);
 
         const [result] = await db.query(
             `UPDATE categories SET name = ? WHERE id = ?`,

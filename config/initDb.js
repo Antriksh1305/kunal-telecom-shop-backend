@@ -58,6 +58,7 @@ async function initializeDatabase() {
           password VARCHAR(255) NOT NULL,
           role_id INT NOT NULL,
           is_approved BOOLEAN DEFAULT 0,
+          is_active BOOLEAN DEFAULT 1,
           FOREIGN KEY (role_id) REFERENCES roles(id)
       );
     `);
@@ -76,7 +77,8 @@ async function initializeDatabase() {
       (1, 'manage_product'),
       (2, 'manage_product_categories'),
       (3, 'disable_employee_account'),
-      (4, 'delete_employee_account');
+      (4, 'delete_employee_account'),
+      (5, 'change_permissions');
     `);
 
     // Create `user_permissions` table
@@ -84,7 +86,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS user_permissions (
           user_id INT,
           permission_id INT,
-          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
           FOREIGN KEY (permission_id) REFERENCES permissions(id),
           PRIMARY KEY (user_id, permission_id)
       );

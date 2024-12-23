@@ -1,6 +1,15 @@
 const express = require('express');
+
+// models
 const User = require('../models/user');
 const UserPermission = require('../models/userPermission');
+
+// middlewares
+const protect = require('../middlewares/authentication');
+const authorize = require('../middlewares/authorization');
+
+// utils
+const { handleSqlError } = require('../utils/errorHandler');
 
 const router = express.Router();
 
@@ -9,28 +18,34 @@ router.get('/approve/:userId', async (req, res) => {
     const { userId } = req.params;
 
     try {
-        // find if it exists in the database or not
+        // Check if the user exists
         const user = await User.findByUserId(userId);
         if (!user) throw new Error('User not found');
         if (user.is_approved === 1) throw new Error('User is already approved');
-        if (user.is_approved === 0) throw new Error('User is already disapproved');
+        // if (user.is_approved === 0) throw new Error('User is already disapproved');
 
-        // approve the user
         await UserPermission.approveUser(userId);
-        
+
         const permissions = await UserPermission.getAllPermissions();
+        const assignPermissions = [];
+
         if (user.role_id === 1) {
-            // admin
-            for (let permission of permissions) {
-                await UserPermission.assignPermission(userId, permission.id);
-            }
-        } else if (user.role === 2) {
-            // employee
-            for (let permission of permissions) {
-                if (permission.permission_name === 'manage_product' || permission.permission_name === 'manage_product_categories') {
-                    await UserPermission.assignPermission(userId, permission.id);
-                }
-            }
+            // Admin: Assign all permissions
+            assignPermissions.push(...permissions.map(permission => permission.id));
+        } else if (user.role_id === 2) {
+            // Employee: Assign specific permissions
+            assignPermissions.push(
+                ...permissions
+                    .filter(permission => 
+                        permission.permission_name === 'manage_product' || 
+                        permission.permission_name === 'manage_product_categories')
+                    .map(permission => permission.id)
+            );
+        }
+
+        // Assign permissions in bulk
+        if (assignPermissions.length > 0) {
+            await UserPermission.assignPermissions(userId, assignPermissions);
         }
 
         const htmlResponse = `
@@ -167,25 +182,74 @@ router.get('/disapprove/:userId', async (req, res) => {
 });
 
 // Get All Permissions
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res, next) => {
     try {
         const permissions = await UserPermission.getAllPermissions();
         res.status(200).json(permissions);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        next(error);
     }
 });
 
 // Get User Permissions
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', protect, async (req, res, next) => {
     const { userId } = req.params;
 
     try {
         const permissions = await UserPermission.getUserPermissions(userId);
         res.status(200).json(permissions);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        next(error);
     }
+});
+
+// Change User Permissions
+router.post('/change-permission', protect, authorize('change_permissions'), async (req, res, next) => {
+    const { userId, assignPermissions, removePermissions } = req.body;
+
+    if (!userId || (assignPermissions.length == 0 && removePermissions.length == 0)) {
+        return res.status(400).json({ error: 'Missing userId or permissions data' });
+    }
+
+    try {
+        if (assignPermissions && assignPermissions.length > 0) {
+            await UserPermission.assignPermissions(userId, assignPermissions);
+        }
+
+        if (removePermissions && removePermissions.length > 0) {
+            await UserPermission.removePermissions(userId, removePermissions);
+        }
+
+        res.status(200).json({ message: 'Permissions updated successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Check if User Has Specific Permission
+router.get('/:userId/has-permission/:permissionId', protect, async (req, res, next) => {
+    const { userId, permissionId } = req.params;
+
+    try {
+        const userPermissions = await UserPermission.getUserPermissions(userId);
+        const hasPermission = userPermissions.some(permission => permission.id === parseInt(permissionId));
+
+        res.status(200).json({ hasPermission });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.use((err, req, res, next) => {
+    if (err.code && err.errno) {
+        return handleSqlError(err, res);
+    }
+
+    if (err.message) {
+        return res.status(400).json({ error: err.message });
+    }
+
+    return res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = router;

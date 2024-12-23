@@ -34,22 +34,31 @@ const User = {
     },
 
     async update(userId, updatedData) {
-        const { first_name, last_name, password, role_id } = updatedData;
+        const { first_name, last_name, password } = updatedData;
 
         if (!passwordRegex.test(password)) {
             throw new Error('Password must be at least 6 characters long');
-        }        
+        }
         if (!nameRegex.test(first_name) || !nameRegex.test(last_name)) {
             throw new Error('First and last name should contain only alphabets');
         }
 
         await db.query(
-            `UPDATE users SET first_name = ?, last_name = ?, password = ?, role_id = ?, WHERE id = ?`,
-            [first_name, last_name, password, role_id, userId]);
+            `UPDATE users SET first_name = ?, last_name = ?, password = ? WHERE id = ?`,
+            [first_name, last_name, password, userId]
+        );
     },
 
     async delete(userId) {
         await db.query(`DELETE FROM users WHERE id = ?`, [userId]);
+    },
+
+    async changeAccountActivity(userId, isActive) {
+        if(isActive) {
+            await db.query(`UPDATE users SET is_active = 0 WHERE id = ?`, [userId]);
+        } else {
+            await db.query(`UPDATE users SET is_active = 1 WHERE id = ?`, [userId]);
+        }
     },
 
     async findByEmail(email) {
@@ -64,6 +73,11 @@ const User = {
     async findByUserId(userId) {
         const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
         return rows[0];
+    },
+
+    async getAll() {
+        const [rows] = await db.query('SELECT * FROM users');
+        return rows;
     },
 
     async getAllEmployees() {
