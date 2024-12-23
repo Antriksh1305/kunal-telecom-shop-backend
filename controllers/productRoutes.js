@@ -1,10 +1,12 @@
 const express = require('express');
 const Product = require('../models/product');
+const protect = require('../middlewares/authentication');
+const authorize = require('../middlewares/authorization');
 
 const router = express.Router();
 
 // Get all products
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
     try {
         const products = await Product.getAll();
         res.json(products);
@@ -14,7 +16,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get a single product by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', protect, async (req, res) => {
     const { id } = req.params;
     try {
         const product = await Product.getById(id);
@@ -28,7 +30,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new product
-router.post('/', async (req, res) => {
+router.post('/', protect, authorize('manage_product'), async (req, res) => {
     const { name, hinglish_name, market_price, dealer_price, image, available, category_id, color, variant } = req.body;
     
     try {
@@ -45,7 +47,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update a product
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, authorize('manage_product'), async (req, res) => {
     const { id } = req.params;
     
     try {
@@ -60,7 +62,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a product
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, authorize('manage_product'), async (req, res) => {
     const { id } = req.params;
     
     try {

@@ -4,10 +4,10 @@ const cors = require('cors');
 require('dotenv').config();
 
 const initializeDatabase = require('./config/initDb');
-const userRoutes = require('./routes/userRoutes');
-const userPermissionRoutes = require('./routes/userPermissionRoutes');
-const productRoutes = require('./routes/productRoutes');
-const categoryRoutes = require('./routes/categoryRoutes');
+const userRoutes = require('./controllers/userRoutes');
+const userPermissionRoutes = require('./controllers/userPermissionRoutes');
+const productRoutes = require('./controllers/productRoutes');
+const categoryRoutes = require('./controllers/categoryRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;

@@ -1,9 +1,12 @@
 const express = require('express');
 const Category = require('../models/category');
+const protect = require('../middlewares/authentication');
+const authorize = require('../middlewares/authorization');
+
 const router = express.Router();
 
 // Get all categories
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
     try {
         const categories = await Category.getAll();
         res.json(categories);
@@ -13,7 +16,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get a single category by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', protect, async (req, res) => {
     const categoryId = req.params.id;
     try {
         const category = await Category.getById(categoryId);
@@ -27,7 +30,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new category
-router.post('/', async (req, res) => {
+router.post('/', protect, authorize('manage_product_categories'), async (req, res) => {
     const { name } = req.body;
 
     // Manual validation
@@ -53,7 +56,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update an existing category
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, authorize('manage_product_categories'), async (req, res) => {
     const categoryId = req.params.id;
     const { name } = req.body;
 
@@ -78,7 +81,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a category
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, authorize('manage_product_categories'), async (req, res) => {
     const categoryId = req.params.id;
     try {
         const deletedRows = await Category.delete(categoryId);
