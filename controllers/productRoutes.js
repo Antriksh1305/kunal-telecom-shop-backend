@@ -1,7 +1,14 @@
 const express = require('express');
+
+// models
 const Product = require('../models/product');
+
+// middlewares
 const protect = require('../middlewares/authentication');
 const authorize = require('../middlewares/authorization');
+
+// utils
+const { handleSqlError } = require('../utils/errorHandler');
 
 const router = express.Router();
 
