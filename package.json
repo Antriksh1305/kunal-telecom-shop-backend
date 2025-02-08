@@ -3,12 +3,11 @@
   "version": "1.0.1",
   "main": "index.js",
   "scripts": {
-    "start": "env-cmd -f .env.local-dev nodemon server.js",
-    "start:dev": "env-cmd -f .env.local-dev nodemon server.js",
-    "start:prod": "env-cmd -f .env.local-prod nodemon server.js",
+    "start": "env-cmd -f .env.local-dev nodemon index.js",
+    "start:dev": "env-cmd -f .env.local-dev nodemon index.js",
+    "start:prod": "env-cmd -f .env.local-prod nodemon index.js",
     "build": "npm install --omit=dev && npm prune --omit=dev",
-    "deploy:dev": "env-cmd -f .env node server.js",
-    "deploy:prod": "env-cmd -f .env node server.js"
+    "deploy": "node index.js"
   },
   "engines": {
     "node": ">=20.x",
