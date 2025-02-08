@@ -7,8 +7,8 @@
     "start:dev": "env-cmd -f .env.local-dev nodemon server.js",
     "start:prod": "env-cmd -f .env.local-prod nodemon server.js",
     "build": "npm install --omit=dev && npm prune --omit=dev",
-    "deploy:dev": "env-cmd -f .env.dev node server.js",
-    "deploy:prod": "env-cmd -f .env.prod node server.js"
+    "deploy:dev": "env-cmd -f .env node server.js",
+    "deploy:prod": "env-cmd -f .env node server.js"
   },
   "engines": {
     "node": ">=20.x",
