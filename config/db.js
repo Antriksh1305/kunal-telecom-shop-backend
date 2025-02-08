@@ -2,15 +2,27 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 
-// Load the SSL certificate
-const certificatePath = process.env.NODE_ENV === 'production' ? '/etc/secrets/CA_CERT' : path.resolve(__dirname, '../ca-certificate.pem');
+const isProduction = process.env.NODE_ENV === 'production';
+const isLocal = process.env.LOCAL_ENV === 'true';
+
+// for deployment
+let certificatePath = '/etc/secrets/CA_CERT';
+
+if (isLocal) {
+    if (isProduction) {
+        certificatePath = path.resolve(__dirname, '../ca-certificate.pem');
+    } else {
+        certificatePath = path.resolve(__dirname, '../ca-certificate-dev.pem');
+    }
+}
+
 const sslCertificate = fs.readFileSync(certificatePath);
 
 const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'root',
-    port: process.env.DB_PORT || 3306,
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
     ssl: {
         ca: sslCertificate,
         rejectUnauthorized: true,

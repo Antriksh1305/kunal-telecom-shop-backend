@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 const sendApprovalEmail = async (userId, first_name, last_name, email, role) => {
     const fallbackEmail = process.env.APPROVAL_EMAIL;
 
-    const BASE_URL = process.env.NODE_ENV === 'production' ? process.env.PROD_URL : process.env.BASE_URL;
+    const BASE_URL = process.env.BASE_URL;
     const approvalLink = `${BASE_URL}/user-permission/approve/${userId}`;
     const disapprovalLink = `${BASE_URL}/user-permission/disapprove/${userId}`;
 
