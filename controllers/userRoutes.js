@@ -12,9 +12,6 @@ const { loginLimiter, signupLimiter } = require('../middlewares/rateLimiter');
 // services
 const emailService = require('../services/emailService');
 
-// utils
-const { handleSqlError } = require('../utils/errorHandler');
-
 const router = express.Router();
 
 // Signup Route
@@ -91,8 +88,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 });
 
 // Update User
-router.put('/:userId', protect, async (req, res, next) => {
-    const { userId } = req.params;
+router.put('/', protect, async (req, res, next) => {
     const { first_name, last_name, password } = req.body;
 
     if (!first_name || !password) {
@@ -100,6 +96,7 @@ router.put('/:userId', protect, async (req, res, next) => {
     }
 
     try {
+        const userId = req.user.id;
         const user = await User.findByUserId(userId);
 
         if (!user) {
@@ -121,17 +118,13 @@ router.put('/:userId', protect, async (req, res, next) => {
 });
 
 // Delete User
-router.delete('/:userId', protect, async (req, res, next) => {
-    const { userId } = req.params;
-
+router.delete('/', protect, async (req, res, next) => {
     try {
+        const userId = req.user.id;
         const user = await User.findByUserId(userId);
+
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
-        }
-
-        if (req.user.role_id === 2 && req.user.id !== parseInt(userId)) {
-            return res.status(403).json({ error: 'Forbidden: You don\'t have permission' });
         }
 
         await User.delete(userId);
@@ -177,18 +170,6 @@ router.get('/:userId', protect, async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-});
-
-router.use((err, req, res, next) => {
-    if (err.code && err.errno) {
-        return handleSqlError(err, res);
-    }
-
-    if (err.message) {
-        return res.status(400).json({ error: err.message });
-    }
-
-    return res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = router;

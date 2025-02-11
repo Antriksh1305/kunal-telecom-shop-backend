@@ -8,7 +8,10 @@ const userRoutes = require('./controllers/userRoutes');
 const userPermissionRoutes = require('./controllers/userPermissionRoutes');
 const adminRoutes = require('./controllers/adminRoutes');
 const productRoutes = require('./controllers/productRoutes');
-const categoryRoutes = require('./controllers/categoryRoutes');
+const productCategoryRoutes = require('./controllers/productCategoryRoutes');
+const accessoryRoutes = require('./controllers/accessoryRoutes');
+const accessoryCategoryRoutes = require('./controllers/accessoryCategoryRoutes');
+const handleErrors = require('./middlewares/errorHandler');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -25,7 +28,10 @@ app.use('/users', userRoutes);
 app.use('/user-permission', userPermissionRoutes);
 app.use('/admin', adminRoutes);
 app.use('/products', productRoutes);
-app.use('/categories', categoryRoutes);
+app.use('/product-categories', productCategoryRoutes);
+app.use('/accessories', accessoryRoutes);
+app.use('/accessory-categories', accessoryCategoryRoutes);
+app.use(handleErrors);
 
 // Start Server
 app.listen(port, () => {

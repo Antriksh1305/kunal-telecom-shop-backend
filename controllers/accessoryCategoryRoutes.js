@@ -1,34 +1,31 @@
 const express = require('express');
 
 // models
-const Category = require('../models/category');
+const AccessoryCategory = require('../models/accessoryCategory');
 
 // middlewares
 const protect = require('../middlewares/authentication');
 const authorize = require('../middlewares/authorization');
-
-// utils
-const { handleSqlError } = require('../utils/errorHandler');
 
 const router = express.Router();
 
 // Get all categories
 router.get('/', protect, async (req, res, next) => {
     try {
-        const categories = await Category.getAll();
+        const categories = await AccessoryCategory.getAll();
         res.json(categories);
     } catch (error) {
         next(error);
     }
 });
 
-// Get a single category by ID
+// Get a single accessory category by ID
 router.get('/:id', protect, async (req, res, next) => {
     const categoryId = req.params.id;
     try {
-        const category = await Category.getById(categoryId);
+        const category = await AccessoryCategory.getById(categoryId);
         if (!category) {
-            return res.status(404).json({ error: 'Category not found' });
+            return res.status(404).json({ error: 'Accessory Category not found' });
         }
         res.json(category);
     } catch (error) {
@@ -36,7 +33,7 @@ router.get('/:id', protect, async (req, res, next) => {
     }
 });
 
-// Create a new category
+// Create a new accesory category
 router.post('/', protect, authorize('manage_product_categories'), async (req, res, next) => {
     const { name } = req.body;
 
@@ -48,15 +45,15 @@ router.post('/', protect, authorize('manage_product_categories'), async (req, re
     }
 
     try {
-        const newCategoryId = await Category.create({ name });
+        const newCategoryId = await AccessoryCategory.create({ name });
         res.status(201).json({ message: 'Category created successfully!', id: newCategoryId });
     } catch (error) {
         next(error);
     }
 });
 
-// Update an existing category
-router.put('/:id', protect, authorize('manage_product_categories'), async (req, res) => {
+// Update an existing accessory category
+router.put('/:id', protect, authorize('manage_product_categories'), async (req, res, next) => {
     const categoryId = req.params.id;
     const { name } = req.body;
 
@@ -68,7 +65,7 @@ router.put('/:id', protect, authorize('manage_product_categories'), async (req, 
     }
 
     try {
-        const updatedRows = await Category.update(categoryId, { name });
+        const updatedRows = await AccessoryCategory.update(categoryId, { name });
         if (updatedRows === 0) {
             return res.status(404).json({ error: 'Category not found or no changes made.' });
         }
@@ -78,11 +75,11 @@ router.put('/:id', protect, authorize('manage_product_categories'), async (req, 
     }
 });
 
-// Delete a category
-router.delete('/:id', protect, authorize('manage_product_categories'), async (req, res) => {
+// Delete a accessory category
+router.delete('/:id', protect, authorize('manage_product_categories'), async (req, res, next) => {
     const categoryId = req.params.id;
     try {
-        const deletedRows = await Category.delete(categoryId);
+        const deletedRows = await AccessoryCategory.delete(categoryId);
         if (deletedRows === 0) {
             return res.status(404).json({ error: 'Category not found.' });
         }
@@ -90,18 +87,6 @@ router.delete('/:id', protect, authorize('manage_product_categories'), async (re
     } catch (error) {
         next(error);
     }
-});
-
-router.use((err, req, res, next) => {
-    if (err.code && err.errno) {
-        return handleSqlError(err, res);
-    }
-
-    if (err.message) {
-        return res.status(400).json({ error: err.message });
-    }
-
-    return res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = router;

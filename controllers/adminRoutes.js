@@ -7,9 +7,6 @@ const User = require('../models/user');
 const protect = require('../middlewares/authentication');
 const authorize = require('../middlewares/authorization');
 
-// utils
-const { handleSqlError } = require('../utils/errorHandler');
-
 const router = express.Router();
 
 // Get All Admins
@@ -69,18 +66,6 @@ router.put('/account-activity/:userId', protect, authorize('disable_employee_acc
     } catch (error) {
         next(error);
     }
-});
-
-router.use((err, req, res, next) => {
-    if (err.code && err.errno) {
-        return handleSqlError(err, res);
-    }
-
-    if (err.message) {
-        return res.status(400).json({ error: err.message });
-    }
-
-    return res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = router;
