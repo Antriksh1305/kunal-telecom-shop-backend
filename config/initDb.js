@@ -139,59 +139,57 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS buyers (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        phone VARCHAR(20) UNIQUE NOT NULL,
+        phone VARCHAR(20) UNIQUE,
         address TEXT,
         outstanding_udhar DECIMAL(10,2) DEFAULT 0,
-        is_deleted BOOLEAN DEFAULT 0  -- Soft delete field
+        is_active BOOLEAN DEFAULT 1  -- Soft delete flag (1 = active, 0 = deleted)
       );
     `);
-    
+
     // Create buyer_transactions table with user (employee) tracking and payment method
     await connection.query(`
       CREATE TABLE IF NOT EXISTS buyer_transactions (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        buyer_id INT NOT NULL,
+        buyer_id INT DEFAULT NULL,
         user_id INT NOT NULL,
         total_amount DECIMAL(10,2) NOT NULL,
         paid_amount DECIMAL(10,2) DEFAULT 0,
         payment_method VARCHAR(50) NOT NULL,
-        is_udhar BOOLEAN DEFAULT 0,
+        is_udhar_payment BOOLEAN DEFAULT 0,
         transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (buyer_id) REFERENCES buyers(id),
-        FOREIGN KEY (user_id) REFERENCES users(id)
+        FOREIGN KEY (buyer_id) REFERENCES buyers(id) ON DELETE SET NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
-    
-    // Create transaction_items table with product name and price retention
+
+    // Create transaction_products table with product name and price retention
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS transaction_items (
+      CREATE TABLE IF NOT EXISTS transaction_products (
         id INT AUTO_INCREMENT PRIMARY KEY,
         transaction_id INT NOT NULL,
-        product_id INT DEFAULT NULL,  -- Allow NULL for products that are deleted
+        product_id INT DEFAULT NULL,  -- NULL if product is deleted
         quantity INT NOT NULL DEFAULT 1,
-        price_per_unit DECIMAL(10,2) NOT NULL,
-        product_name VARCHAR(255),  -- Store the product name at the time of transaction
-        product_price DECIMAL(10,2),  -- Store the product price at the time of transaction
+        product_name VARCHAR(255),  -- Stores product name at the time of transaction
+        product_price DECIMAL(10,2),  -- Stores product price at the time of transaction
         FOREIGN KEY (transaction_id) REFERENCES buyer_transactions(id) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL  -- If product is deleted, set product_id to NULL
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL  -- Prevents sales record loss
       );
     `);
-    
+
     // Create transaction_accessories table with accessory name and price retention
     await connection.query(`
       CREATE TABLE IF NOT EXISTS transaction_accessories (
         id INT AUTO_INCREMENT PRIMARY KEY,
         transaction_id INT NOT NULL,
-        accessory_id INT DEFAULT NULL,  -- Allow NULL for accessories that are deleted
+        accessory_id INT DEFAULT NULL,  -- NULL if accessory is deleted
         quantity INT NOT NULL DEFAULT 1,
-        price_per_unit DECIMAL(10,2) NOT NULL,
-        accessory_name VARCHAR(255),  -- Store the accessory name at the time of transaction
-        accessory_price DECIMAL(10,2),  -- Store the accessory price at the time of transaction
+        accessory_name VARCHAR(255),  -- Stores accessory name at the time of transaction
+        accessory_price DECIMAL(10,2),  -- Stores accessory price at the time of transaction
         FOREIGN KEY (transaction_id) REFERENCES buyer_transactions(id) ON DELETE CASCADE,
-        FOREIGN KEY (accessory_id) REFERENCES accessories(id) ON DELETE SET NULL  -- If accessory is deleted, set accessory_id to NULL
+        FOREIGN KEY (accessory_id) REFERENCES accessories(id) ON DELETE SET NULL  -- Prevents sales record loss
       );
     `);
-    
+
     // ----------------------------
     // Triggers
     // ----------------------------
@@ -212,31 +210,29 @@ async function createTriggers(connection) {
       connection.query(`DROP TRIGGER IF EXISTS check_accessory_stock;`),
       connection.query(`DROP TRIGGER IF EXISTS decrease_product_stock;`),
       connection.query(`DROP TRIGGER IF EXISTS decrease_accessory_stock;`),
-      connection.query(`DROP TRIGGER IF EXISTS restore_product_stock_after_delete;`),
-      connection.query(`DROP TRIGGER IF EXISTS restore_accessory_stock_after_delete;`),
-      connection.query(`DROP TRIGGER IF EXISTS update_product_stock_after_update;`),
-      connection.query(`DROP TRIGGER IF EXISTS update_accessory_stock_after_update;`),
+      connection.query(`DROP TRIGGER IF EXISTS restore_stock_before_transaction_delete;`),
       connection.query(`DROP TRIGGER IF EXISTS update_udhar_on_transaction;`),
-      connection.query(`DROP TRIGGER IF EXISTS update_udhar_on_payment;`),
+      connection.query(`DROP TRIGGER IF EXISTS update_udhar_on_transaction_delete;`)
     ]);
 
     // ----------------------------
     // CREATE ALL TRIGGERS IN PARALLEL
     // ----------------------------
     await Promise.all([
-      // Check if product stock is available before inserting transaction_items
+      // Check if product stock is available before inserting transaction_products
       connection.query(`
         CREATE TRIGGER check_product_stock
-        BEFORE INSERT ON transaction_items
+        BEFORE INSERT ON transaction_products
         FOR EACH ROW
         BEGIN
           DECLARE currentAvailable INT;
           SELECT available INTO currentAvailable FROM products WHERE id = NEW.product_id;
-          IF currentAvailable < NEW.quantity THEN
+          IF NEW.product_id IS NOT NULL AND currentAvailable < NEW.quantity THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient product inventory for sale';
           END IF;
         END;
       `),
+
       // Check if accessory stock is available before inserting transaction_accessories
       connection.query(`
         CREATE TRIGGER check_accessory_stock
@@ -245,106 +241,79 @@ async function createTriggers(connection) {
         BEGIN
           DECLARE currentAvailable INT;
           SELECT available INTO currentAvailable FROM accessories WHERE id = NEW.accessory_id;
-          IF currentAvailable < NEW.quantity THEN
+          IF NEW.accessory_id IS NOT NULL AND currentAvailable < NEW.quantity THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient accessory inventory for sale';
           END IF;
         END;
       `),
-      // Decrease product stock after inserting transaction_items
+
+      // Decrease product stock after inserting transaction_products
       connection.query(`
         CREATE TRIGGER decrease_product_stock
-        AFTER INSERT ON transaction_items
+        AFTER INSERT ON transaction_products
         FOR EACH ROW
         BEGIN
-          UPDATE products SET available = available - NEW.quantity WHERE id = NEW.product_id;
+          UPDATE products 
+          SET available = available - NEW.quantity 
+          WHERE id = NEW.product_id AND NEW.product_id IS NOT NULL;
         END;
       `),
+
       // Decrease accessory stock after inserting transaction_accessories
       connection.query(`
         CREATE TRIGGER decrease_accessory_stock
         AFTER INSERT ON transaction_accessories
         FOR EACH ROW
         BEGIN
-          UPDATE accessories SET available = available - NEW.quantity WHERE id = NEW.accessory_id;
+          UPDATE accessories 
+          SET available = available - NEW.quantity 
+          WHERE id = NEW.accessory_id AND NEW.accessory_id IS NOT NULL;
         END;
       `),
-      // Restore product stock after deleting transaction_items
+
+      // Restore product stock before deleting a transaction
       connection.query(`
-        CREATE TRIGGER restore_product_stock_after_delete
-        AFTER DELETE ON transaction_items
+        CREATE TRIGGER restore_stock_before_transaction_delete
+        BEFORE DELETE ON buyer_transactions
         FOR EACH ROW
         BEGIN
-          UPDATE products SET available = available + OLD.quantity WHERE id = OLD.product_id;
+            -- Restore stock for products
+            UPDATE products p
+            JOIN transaction_products tp ON p.id = tp.product_id
+            SET p.available = p.available + tp.quantity
+            WHERE tp.transaction_id = OLD.id;
+
+            -- Restore stock for accessories
+            UPDATE accessories a
+            JOIN transaction_accessories ta ON a.id = ta.accessory_id
+            SET a.available = a.available + ta.quantity
+            WHERE ta.transaction_id = OLD.id;
         END;
       `),
-      // Restore accessory stock after deleting transaction_accessories
-      connection.query(`
-        CREATE TRIGGER restore_accessory_stock_after_delete
-        AFTER DELETE ON transaction_accessories
-        FOR EACH ROW
-        BEGIN
-          UPDATE accessories SET available = available + OLD.quantity WHERE id = OLD.accessory_id;
-        END;
-      `),
-      // Update product stock after updating transaction_items
-      connection.query(`
-        CREATE TRIGGER update_product_stock_after_update
-        AFTER UPDATE ON transaction_items
-        FOR EACH ROW
-        BEGIN
-          UPDATE products SET available = available + OLD.quantity - NEW.quantity WHERE id = NEW.product_id;
-        END;
-      `),
-      // Update accessory stock after updating transaction_accessories
-      connection.query(`
-        CREATE TRIGGER update_accessory_stock_after_update
-        AFTER UPDATE ON transaction_accessories
-        FOR EACH ROW
-        BEGIN
-          UPDATE accessories SET available = available + OLD.quantity - NEW.quantity WHERE id = NEW.accessory_id;
-        END;
-      `),
-      // Update udhar amount and is_udhar flag on buyer_transactions insert and update
+
+      // Update outstanding udhar when a transaction is created
       connection.query(`
         CREATE TRIGGER update_udhar_on_transaction
         AFTER INSERT ON buyer_transactions
         FOR EACH ROW
         BEGIN
-          DECLARE balance_difference DECIMAL(10,2);
-
-          IF NEW.is_udhar THEN
-            SET balance_difference = NEW.paid_amount - NEW.total_amount;
+          IF NEW.buyer_id IS NOT NULL THEN
             UPDATE buyers 
-            SET outstanding_udhar = outstanding_udhar + balance_difference 
+            SET outstanding_udhar = outstanding_udhar + (NEW.total_amount - NEW.paid_amount)
             WHERE id = NEW.buyer_id;
-
-            IF (SELECT outstanding_udhar FROM buyers WHERE id = NEW.buyer_id) = 0 THEN
-              UPDATE buyers 
-              SET is_udhar = FALSE
-              WHERE id = NEW.buyer_id;
-            END IF;
           END IF;
         END;
       `),
-      // Update udhar amount and is_udhar flag on buyer_transactions update
+
       connection.query(`
-        CREATE TRIGGER update_udhar_on_payment
-        AFTER UPDATE ON buyer_transactions
+        CREATE TRIGGER update_udhar_on_transaction_delete
+        AFTER DELETE ON buyer_transactions
         FOR EACH ROW
         BEGIN
-          DECLARE balance_difference DECIMAL(10,2);
-
-          IF NEW.paid_amount <> OLD.paid_amount THEN
-            SET balance_difference = NEW.paid_amount - OLD.paid_amount;
+          IF OLD.buyer_id IS NOT NULL THEN
             UPDATE buyers 
-            SET outstanding_udhar = outstanding_udhar + balance_difference 
-            WHERE id = NEW.buyer_id;
-
-            IF (SELECT outstanding_udhar FROM buyers WHERE id = NEW.buyer_id) = 0 THEN
-              UPDATE buyers 
-              SET is_udhar = FALSE
-              WHERE id = NEW.buyer_id;
-            END IF;
+            SET outstanding_udhar = outstanding_udhar - (OLD.total_amount - OLD.paid_amount)
+            WHERE id = OLD.buyer_id;
           END IF;
         END;
       `)
