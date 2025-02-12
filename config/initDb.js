@@ -224,6 +224,7 @@ async function createTriggers(connection) {
     // CREATE ALL TRIGGERS IN PARALLEL
     // ----------------------------
     await Promise.all([
+      // Check if product stock is available before inserting transaction_items
       connection.query(`
         CREATE TRIGGER check_product_stock
         BEFORE INSERT ON transaction_items
@@ -236,6 +237,7 @@ async function createTriggers(connection) {
           END IF;
         END;
       `),
+      // Check if accessory stock is available before inserting transaction_accessories
       connection.query(`
         CREATE TRIGGER check_accessory_stock
         BEFORE INSERT ON transaction_accessories
@@ -248,6 +250,7 @@ async function createTriggers(connection) {
           END IF;
         END;
       `),
+      // Decrease product stock after inserting transaction_items
       connection.query(`
         CREATE TRIGGER decrease_product_stock
         AFTER INSERT ON transaction_items
@@ -256,6 +259,7 @@ async function createTriggers(connection) {
           UPDATE products SET available = available - NEW.quantity WHERE id = NEW.product_id;
         END;
       `),
+      // Decrease accessory stock after inserting transaction_accessories
       connection.query(`
         CREATE TRIGGER decrease_accessory_stock
         AFTER INSERT ON transaction_accessories
@@ -264,6 +268,7 @@ async function createTriggers(connection) {
           UPDATE accessories SET available = available - NEW.quantity WHERE id = NEW.accessory_id;
         END;
       `),
+      // Restore product stock after deleting transaction_items
       connection.query(`
         CREATE TRIGGER restore_product_stock_after_delete
         AFTER DELETE ON transaction_items
@@ -272,6 +277,7 @@ async function createTriggers(connection) {
           UPDATE products SET available = available + OLD.quantity WHERE id = OLD.product_id;
         END;
       `),
+      // Restore accessory stock after deleting transaction_accessories
       connection.query(`
         CREATE TRIGGER restore_accessory_stock_after_delete
         AFTER DELETE ON transaction_accessories
@@ -280,6 +286,7 @@ async function createTriggers(connection) {
           UPDATE accessories SET available = available + OLD.quantity WHERE id = OLD.accessory_id;
         END;
       `),
+      // Update product stock after updating transaction_items
       connection.query(`
         CREATE TRIGGER update_product_stock_after_update
         AFTER UPDATE ON transaction_items
@@ -288,6 +295,7 @@ async function createTriggers(connection) {
           UPDATE products SET available = available + OLD.quantity - NEW.quantity WHERE id = NEW.product_id;
         END;
       `),
+      // Update accessory stock after updating transaction_accessories
       connection.query(`
         CREATE TRIGGER update_accessory_stock_after_update
         AFTER UPDATE ON transaction_accessories
@@ -296,6 +304,7 @@ async function createTriggers(connection) {
           UPDATE accessories SET available = available + OLD.quantity - NEW.quantity WHERE id = NEW.accessory_id;
         END;
       `),
+      // Update udhar amount and is_udhar flag on buyer_transactions insert and update
       connection.query(`
         CREATE TRIGGER update_udhar_on_transaction
         AFTER INSERT ON buyer_transactions
@@ -317,6 +326,7 @@ async function createTriggers(connection) {
           END IF;
         END;
       `),
+      // Update udhar amount and is_udhar flag on buyer_transactions update
       connection.query(`
         CREATE TRIGGER update_udhar_on_payment
         AFTER UPDATE ON buyer_transactions

@@ -26,4 +26,14 @@ const signupLimiter = rateLimit({
     },
 });
 
-module.exports = { loginLimiter, signupLimiter };
+const resetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100, // currently set as 100 for development purposes
+    message: { error: "Too many reset attempts, please try again later." }
+});
+
+module.exports = {
+    loginLimiter,
+    signupLimiter,
+    resetLimiter,
+};

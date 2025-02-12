@@ -73,6 +73,44 @@ const sendApprovalEmail = async (userId, first_name, last_name, email, role) => 
     }
 };
 
+const sendPasswordResetEmail = async (userId, first_name, last_name, email, token) => {
+    const resetLink = `${process.env.BASE_URL}/reset-password/${token}`;
+    const emailSubject = "Password Reset Request";
+    const emailBody = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <div style="background-color: #007BFF; color: #fff; padding: 16px 24px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Password Reset Request</h1>
+        </div>
+        <div style="padding: 24px;">
+            <p>Dear ${first_name} ${last_name},</p>
+            <p>We received a request to reset your password. Click the button below to proceed:</p>
+            <div style="text-align: center; margin: 24px 0;">
+                <a href="${resetLink}" target="_blank" style="display: inline-block; background-color: #007BFF; color: #fff; padding: 12px 24px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 4px;">Reset Password</a>
+            </div>
+            <p style="margin: 16px 0;">If you did not request a password reset, you can safely ignore this email.</p>
+            <p style="margin: 16px 0;">Thank you!</p>
+        </div>
+        <div style="background-color: #f8f9fa; color: #666; padding: 16px; text-align: center; font-size: 12px; border-top: 1px solid #ddd;">
+            <p style="margin: 0;">This is an automated email. Please do not reply.</p>
+        </div>
+    </div>`;
+
+    try {
+        await transporter.sendMail({
+            from: `"Support Team" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: emailSubject,
+            html: emailBody,
+        });
+
+        console.log(`Password reset email sent to ${email}`);
+    } catch (error) {
+        console.error("Error sending email:", error.message);
+        throw new Error("Error sending password reset email.");
+    }
+};
+
 module.exports = {
     sendApprovalEmail,
+    sendPasswordResetEmail,
 };

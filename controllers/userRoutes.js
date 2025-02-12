@@ -7,29 +7,31 @@ const User = require('../models/user');
 
 // middlewares
 const protect = require('../middlewares/authentication');
-const { loginLimiter, signupLimiter } = require('../middlewares/rateLimiter');
+const { loginLimiter, signupLimiter, resetLimiter } = require('../middlewares/rateLimiter');
 
 // services
 const emailService = require('../services/emailService');
 
 const router = express.Router();
 
+// constants for Role ids
+const ROLE_ADMIN = 1;
+const ROLE_EMPLOYEE = 2;
+
 // Signup Route
 router.post('/signup', signupLimiter, async (req, res, next) => {
     const { email, first_name, last_name, password, role } = req.body;
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
         let roleId = null;
-        if(role === 'admin') roleId = 1;
-        if(role === 'employee') roleId = 2;
+        if (role === 'admin') roleId = ROLE_ADMIN;
+        if (role === 'employee') roleId = ROLE_EMPLOYEE;
 
         const userId = await User.create({
             email: email,
             first_name: first_name,
             last_name: last_name,
-            password: hashedPassword,
+            password: password,
             role_id: roleId,
             is_approved: 0,
         });
@@ -49,12 +51,12 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     try {
         const user = await User.findByEmail(email);
 
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+        if (!user.is_approved) {
+            return res.status(403).json({ error: 'You are not approved yet' });
         }
 
-        if (!user.is_approved) {
-            return res.status(403).json({ error: 'User not approved yet' });
+        if (!user.is_active) {
+            return res.status(403).json({ error: 'Your account is disabled' });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -87,30 +89,61 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     }
 });
 
-// Update User
-router.put('/', protect, async (req, res, next) => {
-    const { first_name, last_name, password } = req.body;
+// Forgot Password Route
+router.post("/forgot-password", resetLimiter, async (req, res, next) => {
+    const { email } = req.body;
 
-    if (!first_name || !password) {
-        return res.status(400).json({ error: 'First name and password are required' });
+    try {
+        const user = await User.findByEmail(email);
+        
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+            expiresIn: "10m",
+        });
+
+        console.log(token);
+        await emailService.sendPasswordResetEmail(user.id, user.first_name, user.last_name, email, token);
+        res.status(200).json({ message: "Password reset link sent successfully." });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Reset Password Route
+router.post("/reset-password", async (req, res, next) => {
+    const { token, password } = req.body;
+
+    // Basic password validation
+    if (!password || password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters long." });
     }
 
     try {
-        const userId = req.user.id;
-        const user = await User.findByUserId(userId);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
 
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+        // Update user password
+        await User.update(userId, { password });
+
+        res.status(200).json({ message: "Password reset successful." });
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(400).json({ error: "Reset token has expired. Please request a new link." });
+        }
+        return res.status(400).json({ error: "Invalid or malformed token." });
+    }
+});
+
+// Update User
+router.put('/', protect, async (req, res, next) => {
+    try {
+        const { first_name, last_name, password } = req.body;
+        const userId = req.user.id;
+
+        if (!first_name && !last_name && !password) {
+            return res.status(400).json({ error: 'At least one field is required for update' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        await User.update(userId, {
-            first_name,
-            last_name,
-            password: hashedPassword
-        });
-
+        await User.update(userId, req.body);
         res.status(200).json({ message: 'User updated successfully' });
     } catch (error) {
         next(error);
