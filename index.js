@@ -3,12 +3,22 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 require('dotenv').config();
 
+// Database
 const initializeDatabase = require('./config/initDb');
+
+// routes
 const userRoutes = require('./controllers/userRoutes');
 const userPermissionRoutes = require('./controllers/userPermissionRoutes');
 const adminRoutes = require('./controllers/adminRoutes');
 const productRoutes = require('./controllers/productRoutes');
-const categoryRoutes = require('./controllers/categoryRoutes');
+const productCategoryRoutes = require('./controllers/productCategoryRoutes');
+const accessoryRoutes = require('./controllers/accessoryRoutes');
+const accessoryCategoryRoutes = require('./controllers/accessoryCategoryRoutes');
+const buyerRoutes = require('./controllers/buyerRoutes');
+const transactionRoutes = require('./controllers/transactionRoutes');
+
+// middlewares
+const handleErrors = require('./middlewares/errorHandler');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -25,7 +35,12 @@ app.use('/users', userRoutes);
 app.use('/user-permission', userPermissionRoutes);
 app.use('/admin', adminRoutes);
 app.use('/products', productRoutes);
-app.use('/categories', categoryRoutes);
+app.use('/product-categories', productCategoryRoutes);
+app.use('/accessories', accessoryRoutes);
+app.use('/accessory-categories', accessoryCategoryRoutes);
+app.use('/buyers', buyerRoutes);
+app.use('/transactions', transactionRoutes);
+app.use(handleErrors);
 
 // Start Server
 app.listen(port, () => {

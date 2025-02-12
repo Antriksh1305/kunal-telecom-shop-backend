@@ -8,9 +8,6 @@ const UserPermission = require('../models/userPermission');
 const protect = require('../middlewares/authentication');
 const authorize = require('../middlewares/authorization');
 
-// utils
-const { handleSqlError } = require('../utils/errorHandler');
-
 const router = express.Router();
 
 // Approve User
@@ -238,18 +235,6 @@ router.get('/:userId/has-permission/:permissionId', protect, async (req, res, ne
     } catch (error) {
         next(error);
     }
-});
-
-router.use((err, req, res, next) => {
-    if (err.code && err.errno) {
-        return handleSqlError(err, res);
-    }
-
-    if (err.message) {
-        return res.status(400).json({ error: err.message });
-    }
-
-    return res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = router;

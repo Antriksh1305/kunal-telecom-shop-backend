@@ -1,7 +1,7 @@
 const express = require('express');
 
 // models
-const Product = require('../models/product');
+const Acccessory = require('../models/accessory');
 
 // middlewares
 const protect = require('../middlewares/authentication');
@@ -10,7 +10,7 @@ const upload = require('../middlewares/multerConfig');
 
 const router = express.Router();
 
-// Get all products (Paginated & Filtered)
+// Get all accessory
 router.get('/', protect, async (req, res, next) => {
     try {
         const parseArray = (value) => (value ? value.split(',') : []);
@@ -25,97 +25,94 @@ router.get('/', protect, async (req, res, next) => {
             max_price: req?.query?.max_price,
             available: req?.query?.available,
             color: parseArray(req?.query?.color),
-            variant: parseArray(req?.query?.variant)
         };
 
-        const data = await Product.getAll(filters);
+        const data = await Acccessory.getAll(filters);
         res.json(data);
     } catch (error) {
         next(error);
     }
 });
 
-// Get a single product by ID
+// Get a single accessory by ID
 router.get('/:id', protect, async (req, res, next) => {
     const { id } = req.params;
     try {
-        const product = await Product.getById(id);
-        if (!product) {
-            return res.status(404).json({ error: 'Product not found.' });
+        const accesory = await Acccessory.getById(id);
+        if (!accesory) {
+            return res.status(404).json({ error: 'Acccessory not found.' });
         }
-        res.json(product);
+        res.json(accesory);
     } catch (error) {
         next(error);
     }
 });
 
-// Create a new product
+// Create a new accessory
 router.post('/', protect, authorize('manage_product'), upload.single('image'), async (req, res, next) => {
-    const { name, hinglish_name, market_price, dealer_price, available, category_id, color, variant } = req.body;
+    const { name, hinglish_name, market_price, dealer_price, available, category_id, color } = req.body;
 
     const image = req.file ? req.file?.buffer : null;
 
     try {
-        const newProductId = await Product.create({ 
-            name, 
-            hinglish_name, 
-            category_id: parseInt(category_id), 
-            market_price: parseFloat(market_price), 
-            dealer_price: parseFloat(dealer_price), 
-            image, 
-            available: parseInt(available), 
-            color, 
-            variant 
+        const newAccessoryId = await Acccessory.create({
+            name,
+            hinglish_name,
+            category_id: parseInt(category_id),
+            market_price: parseFloat(market_price),
+            dealer_price: parseFloat(dealer_price),
+            image,
+            available: parseInt(available),
+            color,
         });
 
-        res.status(201).json({ message: 'Product created successfully!', id: newProductId });
+        res.status(201).json({ message: 'Acccessory created successfully!', id: newAccessoryId });
     } catch (error) {
         next(error);
     }
 });
 
-// Update a product
+// Update an accessory
 router.put('/:id', protect, authorize('manage_product'), upload.none(), async (req, res, next) => {
     const { id } = req.params;
-    const { name, hinglish_name, market_price, dealer_price, available, category_id, color, variant } = req.body;
+    const { name, hinglish_name, market_price, dealer_price, available, category_id, color } = req.body;
 
     try {
-        await Product.update(id, {
-            name, 
-            hinglish_name, 
-            category_id: parseInt(category_id), 
-            market_price: parseFloat(market_price), 
-            dealer_price: parseFloat(dealer_price), 
-            available: parseInt(available), 
+        await Acccessory.update(id, {
+            name,
+            hinglish_name,
+            category_id: parseInt(category_id),
+            market_price: parseFloat(market_price),
+            dealer_price: parseFloat(dealer_price),
+            available: parseInt(available),
             color,
-            variant
         });
-        res.json({ message: 'Product updated successfully!' });
+        res.json({ message: 'Acccessory updated successfully!' });
     } catch (error) {
         next(error);
     }
 });
 
-// Update a product image
+// Update an accessory image
 router.put('/:id/image', protect, authorize('manage_product'), upload.single('image'), async (req, res, next) => {
     const { id } = req.params;
     const image = req.file ? req.file.buffer : null;
 
     try {
-        await Product.updateImage(id, image);
-        res.json({ message: 'Product image updated successfully!' });
+        await Acccessory.updateImage(id, image);
+        res.json({ message: 'Acccessory image updated successfully!' });
     } catch (error) {
         next(error);
     }
 });
 
-// Delete a product
+// Delete an accessory
 router.delete('/:id', protect, authorize('manage_product'), async (req, res, next) => {
     const { id } = req.params;
-    
+
     try {
-        await Product.delete(id);
-        res.json({ message: 'Product deleted successfully!' });
+        await Acccessory.delete(id);
+        res.json({ message: 'Acccessory deleted successfully!' });
     } catch (error) {
         next(error);
     }
